@@ -1,0 +1,2 @@
+# Placeholder to keep the data directory under version control.
+# Raw PDFs, parsed output, and snapshots are git-ignored (see .gitignore).

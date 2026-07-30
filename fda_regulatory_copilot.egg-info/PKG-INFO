@@ -1,0 +1,289 @@
+Metadata-Version: 2.4
+Name: fda-regulatory-copilot
+Version: 0.1.0
+Summary: Citation-first, AI-powered FDA Regulatory Intelligence Platform (MVP: hybrid RAG).
+License: Proprietary
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+Requires-Dist: langgraph>=0.2.0
+Requires-Dist: langchain-core>=0.3.0
+Requires-Dist: llama-index-core>=0.11.0
+Requires-Dist: fastapi>=0.115.0
+Requires-Dist: uvicorn[standard]>=0.30.0
+Requires-Dist: sse-starlette>=2.1.0
+Requires-Dist: pydantic>=2.8.0
+Requires-Dist: pydantic-settings>=2.4.0
+Requires-Dist: pgvector>=0.3.0
+Requires-Dist: opensearch-py>=2.7.0
+Requires-Dist: sentence-transformers>=3.0.0
+Requires-Dist: pymupdf>=1.24.0
+Requires-Dist: unstructured[pdf]>=0.15.0
+Requires-Dist: apscheduler>=3.10.0
+Requires-Dist: httpx>=0.27.0
+Requires-Dist: beautifulsoup4>=4.12.0
+Requires-Dist: openai>=1.40.0
+Requires-Dist: anthropic>=0.34.0
+Requires-Dist: asyncpg>=0.29.0
+Requires-Dist: sqlalchemy>=2.0.0
+Requires-Dist: alembic>=1.13.0
+Requires-Dist: supabase>=2.7.0
+Requires-Dist: langfuse>=2.44.0
+Requires-Dist: ragas>=0.1.0
+Requires-Dist: structlog>=24.4.0
+Requires-Dist: python-dotenv>=1.0.0
+Requires-Dist: tenacity>=9.0.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24.0; extra == "dev"
+Requires-Dist: pytest-cov>=5.0.0; extra == "dev"
+Requires-Dist: black>=24.8.0; extra == "dev"
+Requires-Dist: ruff>=0.6.0; extra == "dev"
+Requires-Dist: mypy>=1.11.0; extra == "dev"
+
+# FDA Regulatory Intelligence Platform
+
+Citation-first, AI-powered platform for querying FDA guidance documents with verifiable,
+citation-backed answers. See [PLANNING.md](PLANNING.md) for architecture and [TASK.md](TASK.md)
+for the implementation roadmap.
+
+> **Non-negotiable principle:** every answer ships with a verifiable FDA citation.
+
+## MVP Stack
+
+- **Orchestration:** LangGraph
+- **Retrieval:** PostgreSQL + pgvector (dense) + OpenSearch (BM25) + RRF + BGE-Reranker-Large
+- **Embeddings:** BGE-M3
+- **LLM:** Azure OpenAI (Claude / vLLM fallback)
+- **API:** FastAPI + Pydantic v2 + SSE
+- **Frontend:** Next.js 15 + shadcn/ui
+- **Metadata + Vectors:** PostgreSQL (pgvector) · **Artifacts:** local filesystem · **Auth:** Supabase
+- **Observability:** Langfuse · **Evaluation:** RAGAS + Vectara HHEM
+
+## Repository Layout
+
+```text
+apps/api/        FastAPI application (routes, schemas, deps, settings)
+apps/web/        Next.js frontend (added later)
+src/agents/      LangGraph workflow (state, nodes, edges, guardrails)
+src/ingestion/   FDA scraping, parsing, chunking, embeddings
+src/retrieval/   pgvector, OpenSearch, RRF, reranker
+src/llm/         Provider router, prompts, streaming
+src/reports/     Summaries and exports
+src/monitoring/  Update alerts and diffs
+src/eval/        Gold set and evaluation
+src/common/      Logging, telemetry, errors
+src/db/          SQLAlchemy models for registry, artifacts, and pgvector chunks
+infra/docker/    Service configuration
+data/object_store/ Local raw FDA PDFs, HTML, catalog snapshots, and reports
+tests/           Unit and integration tests
+```
+
+## Local Development
+
+1. Copy the environment template:
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+2. Create a virtual environment and install dependencies:
+
+   ```powershell
+   python -m venv .venv
+   .venv\Scripts\Activate.ps1
+   pip install -e ".[dev]"
+   ```
+
+3. Start infrastructure services:
+
+   ```powershell
+   docker compose up -d
+   ```
+
+4. Apply database migrations:
+
+   ```powershell
+   python -m alembic upgrade head
+   ```
+
+5. Run tests:
+
+   ```powershell
+   python -m pytest
+   ```
+
+6. Run the API:
+
+   ```powershell
+   uvicorn apps.api.main:app --reload --port 8000
+   ```
+
+## Local Configuration
+
+The default local database connection is:
+
+```text
+postgresql+asyncpg://fda:fda@localhost:5432/fda_copilot
+```
+
+The MVP uses one PostgreSQL database for relational metadata and dense vectors:
+
+- `guidance_registry` - FDA catalog metadata keyed by slug.
+- `source_artifacts` - metadata for preserved raw artifacts.
+- `guidance_chunks` - child chunks, BGE-M3 embeddings, and Evidence Card payload metadata.
+
+Raw FDA source files and reports are stored on the local filesystem by default:
+
+```text
+OBJECT_STORE_BACKEND=local
+OBJECT_STORE_BASE_PATH=data/object_store
+```
+
+MinIO/S3 is not required for the MVP local stack.
+
+## Services (docker compose)
+
+| Service    | Port | Purpose                                             |
+|------------|------|-----------------------------------------------------|
+| PostgreSQL | 5432 | Single MVP DB: registry, artifacts, audit, pgvector |
+| OpenSearch | 9200 | BM25 keyword search                                 |
+| Langfuse   | 3000 | Tracing / observability                             |
+
+Useful Docker commands:
+
+```powershell
+docker compose ps
+docker compose ps postgres
+docker compose logs -f postgres
+docker compose up -d postgres opensearch langfuse
+docker compose down
+```
+
+## Verify Local PostgreSQL + pgvector
+
+Connect with `psql` inside the Docker container:
+
+```powershell
+docker compose exec postgres psql -U fda -d fda_copilot
+```
+
+Inside `psql`, verify the database, extension, and migration version:
+
+```sql
+SELECT current_database(), current_user;
+SELECT extname, extversion FROM pg_extension WHERE extname = 'vector';
+SELECT version_num FROM alembic_version;
+```
+
+Expected migration version after the current Phase 2 work:
+
+```text
+20260720_0004
+```
+
+Verify the dense vector table and indexes:
+
+```sql
+\d guidance_chunks
+
+SELECT indexname, indexdef
+FROM pg_indexes
+WHERE tablename = 'guidance_chunks'
+ORDER BY indexname;
+```
+
+The vector index should include:
+
+```text
+USING hnsw (embedding vector_cosine_ops)
+```
+
+Optional smoke test for a 1024-dimensional vector row:
+
+```sql
+INSERT INTO guidance_chunks (
+  chunk_id,
+  document_slug,
+  version_hash,
+  chunk_type,
+  text,
+  embedding,
+  embedding_model,
+  evidence_payload
+)
+VALUES (
+  'local-test:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0',
+  NULL,
+  'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+  'child',
+  'Local pgvector smoke test.',
+  ('[' || array_to_string(array_fill(0.001::float8, ARRAY[1024]), ',') || ']')::vector,
+  'BAAI/bge-m3',
+  '{"source":"local smoke test"}'::jsonb
+);
+
+SELECT
+  chunk_id,
+  text,
+  embedding <=> ('[' || array_to_string(array_fill(0.001::float8, ARRAY[1024]), ',') || ']')::vector AS cosine_distance
+FROM guidance_chunks
+ORDER BY embedding <=> ('[' || array_to_string(array_fill(0.001::float8, ARRAY[1024]), ',') || ']')::vector
+LIMIT 5;
+
+DELETE FROM guidance_chunks
+WHERE chunk_id = 'local-test:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:0';
+```
+
+For GUI tools such as DBeaver or pgAdmin, use:
+
+```text
+Host: localhost
+Port: 5432
+Database: fda_copilot
+User: fda
+Password: fda
+```
+
+## Ingestion Pipeline Status
+
+Phase 2 implementation includes:
+
+- FDA static JSON catalog normalization and registry backfill.
+- Raw PDF/HTML acquisition into local artifact storage.
+- SHA-256 version tracking and lifecycle transition detection.
+- PyMuPDF text/section/page-offset parsing.
+- Unstructured table extraction support.
+- Parent-child chunking with section, page, and character offsets.
+- BGE-M3 embedding generation with batching and progress callbacks.
+- Dense pgvector upsert with Evidence Card payload metadata.
+- OpenSearch BM25 indexing with metadata.
+- Reindex-only-changed cleanup and withdrawn-document removal.
+- Daily update reports and ingestion orchestration.
+
+## Retrieval Status
+
+Phase 3 retrieval implementation includes:
+
+- Query embedding helper for BGE-M3-compatible dense search.
+- Internal retrieval candidate model for carrying Evidence Card payloads across retrieval stages.
+- Shared metadata filters for PostgreSQL and OpenSearch.
+- PostgreSQL + pgvector dense search over `guidance_chunks`.
+- OpenSearch BM25 keyword search over the configured guidance index.
+- Reciprocal Rank Fusion for dense + sparse candidates.
+- BGE-Reranker-Large wrapper with injectable test doubles.
+- Evidence Card and SearchResult formatting.
+- Unified hybrid retrieval client with dense-only or keyword-only fallback when one store is unavailable.
+
+Run focused retrieval tests:
+
+```powershell
+python -m pytest tests/retrieval
+```
+
+Run the full regression suite:
+
+```powershell
+python -m pytest
+```
+
+Gold-set retrieval tuning remains pending until the evaluation corpus is curated.
