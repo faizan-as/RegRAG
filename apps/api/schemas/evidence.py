@@ -19,17 +19,13 @@ class EvidenceCard(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    citation_id: str = Field(
-        description="Stable answer-local citation marker, such as '[1]'."
-    )
+    citation_id: str = Field(description="Stable answer-local citation marker, such as '[1]'.")
     document_id: str = Field(description="Stable internal FDA document identifier.")
     title: str = Field(description="FDA guidance title.")
     section_id: str | None = Field(
         default=None, description="Normalized section identifier when available."
     )
-    section_title: str | None = Field(
-        default=None, description="Human-readable section heading."
-    )
+    section_title: str | None = Field(default=None, description="Human-readable section heading.")
     page_number: int | None = Field(
         default=None, ge=0, description="PDF page number for source inspection."
     )
@@ -37,9 +33,7 @@ class EvidenceCard(BaseModel):
     source_url: HttpUrl = Field(description="FDA source URL.")
     version_hash: str = Field(description="SHA-256 hash of the source document version.")
     document_status: DocumentStatus = Field(description="Draft, Final, or Withdrawn.")
-    retrieval_score: float = Field(
-        description="Dense/BM25/RRF retrieval score used for ranking."
-    )
+    retrieval_score: float = Field(description="Dense/BM25/RRF retrieval score used for ranking.")
     rerank_score: float = Field(description="Cross-encoder reranker score.")
     confidence: float = Field(
         ge=0.0, le=1.0, description="Final evidence confidence used by guardrails."

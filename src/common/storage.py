@@ -71,6 +71,12 @@ class LocalArtifactStore:
         """Return whether an artifact exists for a relative artifact key."""
         return self.resolve_key(object_key).exists()
 
+    def delete(self, object_key: str) -> None:
+        """Delete an artifact by safe relative key when it exists."""
+        path = self.resolve_key(object_key)
+        if path.exists():
+            path.unlink()
+
     def resolve_key(self, object_key: str) -> Path:
         """Resolve a POSIX-style artifact key below the configured base path."""
         key = PurePosixPath(object_key)

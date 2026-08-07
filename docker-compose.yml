@@ -28,7 +28,7 @@ services:
       - POSTGRES_PASSWORD=fda
       - POSTGRES_DB=fda_copilot
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./infra/docker/postgres-init.sql:/docker-entrypoint-initdb.d/001-pgvector.sql:ro

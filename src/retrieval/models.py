@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field, replace
+from enum import Enum
 from typing import Any
 
 from apps.api.schemas.evidence import EvidenceCard
@@ -38,6 +39,15 @@ class RetrievalCandidate:
         return replace(self, **updates)
 
 
+class RetrievalBackendStatus(str, Enum):
+    """Safe outcome status for one retrieval backend or reranking stage."""
+
+    SUCCESS = "success"
+    EMPTY = "empty"
+    FAILED = "failed"
+    SKIPPED = "skipped"
+
+
 @dataclass(frozen=True)
 class HybridSearchResult:
     """Final hybrid retrieval result with API-ready outputs and diagnostics."""
@@ -46,6 +56,9 @@ class HybridSearchResult:
     candidates: list[RetrievalCandidate]
     search_results: list[SearchResult]
     evidence_cards: list[EvidenceCard]
+    dense_status: RetrievalBackendStatus = RetrievalBackendStatus.SUCCESS
+    keyword_status: RetrievalBackendStatus = RetrievalBackendStatus.SUCCESS
+    reranker_status: RetrievalBackendStatus = RetrievalBackendStatus.SUCCESS
     dense_error: str | None = None
     keyword_error: str | None = None
     reranker_error: str | None = None

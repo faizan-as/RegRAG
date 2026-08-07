@@ -148,48 +148,83 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` complete.
 
 ---
 
-## Phase 5: API & Frontend
+## Phase 5: API Backend, Reporting & Monitoring
+
+> Backend API implementation only. Frontend planning and implementation are intentionally split into a separate future plan.
+> See `Docs/implementation/Plan-Phase 5 - API Backend.md`.
+
+- [x] Review and re-baseline the Phase 5 plan against the current implementation
 
 ### FastAPI Setup
-- [ ] Create main FastAPI application
-- [ ] Configure CORS and middleware
-- [ ] Set up lifespan / dependency injection (`deps.py`)
-- [ ] Add global exception handlers
+- [x] Create main FastAPI application and register Phase 5 routers
+- [x] Configure CORS, request-id middleware, and structured logging startup
+- [x] Set up lifespan / dependency injection with shared process resources
+- [x] Add and register global structured exception handlers
+- [x] Load BGE-M3, BGE reranker, provider clients, and compiled LangGraph once per process
 
 ### API Endpoints
-- [ ] `chat` endpoint with SSE streaming
-- [ ] `search` endpoint with filters
-- [ ] `documents` endpoint (retrieval + section navigation)
-- [ ] `summaries` endpoint
-- [ ] `exports` endpoint
-- [ ] `alerts` endpoint
-- [ ] `health` endpoint
-- [ ] Include tool-usage / node-execution transparency in API responses
+- [x] `chat` endpoint with node-boundary SSE streaming and one durable final event
+- [x] `search` endpoint with validated filters and explicit retrieval diagnostics
+- [x] `documents` endpoint (metadata, versions, sections, passages, and authorized artifact download by known id)
+- [x] `summaries` endpoint
+- [x] `exports` endpoint
+- [x] `alerts` endpoint
+- [x] `health` liveness and dependency-aware readiness endpoints
+- [x] Session create/history endpoints backed by server-owned sessions and turns
+- [x] Admin audit-inspection endpoint with pagination and recursive payload redaction
+- [x] Include tool-usage / node-execution transparency in API responses
 
 ### Security & Audit
-- [ ] Add Supabase authentication and role-based access control
-- [ ] Add rate limiting on API endpoints
-- [ ] Persist audit trail for queries, generated answers, Evidence Cards, and refusals
-- [ ] Validate request payloads and retrieval filters with Pydantic models
+- [x] Add Supabase JWT authentication, explicit issuer/audience/algorithm validation, application RBAC, and ownership checks
+- [x] Add independent route rate limits and per-user concurrent SSE stream caps
+- [x] Persist transactional audit records for queries, generated answers, Evidence Cards, refusals, exports, alerts, and downloads
+- [x] Validate request payloads and retrieval filters with Pydantic v2 models
+- [x] Add server-owned chat session, immutable turn, and grounded-summary ORM records + migration
+- [x] Replace client-supplied export content with authorized session/summary identifiers
+- [x] Add structured retrieval success/empty/failure outcomes and sanitized diagnostic codes
 
 ### Summarization & Export
-- [ ] Implement guidance summaries, key requirements, and key changes
-- [ ] Implement Word / PDF summary export
-- [ ] Implement chat transcript export
-- [ ] Create report templates
+- [x] Implement citation-bound guidance summaries, key requirements, and version-scoped key changes with faithfulness validation
+- [x] Implement durable text / Word / PDF summary export
+- [x] Implement authorized chat transcript export from persisted final turns
+- [x] Create grounded report templates with citation and version metadata
 
 ### Update Monitoring
-- [ ] Implement alert records (new / updated / withdrawn)
-- [ ] Implement draft vs final and version diffs
-- [ ] Wire daily scheduler to monitoring
+- [x] Implement alert records with deterministic database-enforced event fingerprints and idempotent upsert
+- [x] Implement forward-only alert lifecycle, draft/final tracking, and version diffs
+- [x] Wire the daily monitoring scheduler to Phase 2 registry change events
 
-### Frontend (Next.js 15)
-- [ ] Set up Next.js 15 + shadcn/ui project
-- [ ] Build streaming chat UI
-- [ ] Build search UI with filters
-- [ ] Build document viewer with highlighted passages and inline citations
-- [ ] Integrate Supabase authentication and RBAC
-- [ ] Add export/reporting UI
+### Phase 5 Validation
+- [x] Pass the full repository test suite (`145 passed`)
+- [x] Pass Ruff and Black checks for Phase 5 implementation files
+- [x] Pass scoped Mypy validation for all 42 Phase 5 source files
+- [x] Validate one Alembic head and generate the complete offline PostgreSQL upgrade SQL
+- [x] Execute the Phase 5 Alembic migration against live PostgreSQL and verify API tables and key constraints
+- [ ] Resolve inherited repository-wide Mypy findings in Phase 2-4 ingestion, retrieval, LLM, and agent modules
+
+### Frontend (Phase 5B - Separate Plan)
+
+> See `Docs/implementation/Plan-Phase 5B - Frontend Application.md`.
+
+- [x] Create the separate Next.js 15 + shadcn/ui frontend implementation plan
+- [ ] Add paginated `GET /api/sessions` for session restoration
+- [ ] Add stable `chunk_id` targets to Evidence Cards
+- [ ] Replace public object-store keys with authorized artifact descriptors
+- [ ] Add owner-checked `GET /api/summaries/{summary_id}` for durable reload
+- [ ] Add typed search filters, structured errors, and an SSE protocol artifact to OpenAPI generation
+- [ ] Expose download/request/rate-limit headers through CORS and emit `Retry-After`
+- [ ] Add pagination to `GET /api/alerts`
+- [ ] Scaffold `apps/web` with Next.js 15, TypeScript strict mode, Tailwind, and shadcn/ui
+- [ ] Add Supabase SSR authentication and protected researcher/admin layouts
+- [ ] Generate typed FastAPI contracts and implement the authenticated API/SSE clients
+- [ ] Implement hybrid search, filters, evidence results, and diagnostics
+- [ ] Implement durable chat sessions, node-boundary streaming, refusals, and citation panels
+- [ ] Implement the PDF/HTML document viewer, section navigation, and passage highlighting
+- [ ] Implement grounded summaries, key changes, and authorized exports
+- [ ] Implement update alerts and admin audit inspection
+- [ ] Add responsive, accessibility, security, and performance hardening
+- [ ] Add Vitest, Testing Library, MSW, Playwright, and axe coverage
+- [ ] Pass frontend lint, typecheck, test, build, accessibility, and browser workflow gates
 
 ---
 
@@ -237,7 +272,7 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` complete.
 - [ ] Ingestion: catalog normalize, registry diff (NEW/UPDATED/WITHDRAWN), PDF resolver, parser, versioning, chunking, embeddings
 - [x] Retrieval: dense, BM25, RRF, reranker, filters
 - [x] Agent: each node, guardrails, citation binding
-- [ ] API: endpoint routing, streaming, validation, error responses
+- [~] API: focused routing, auth, streaming ordering, validation, readiness, redaction, rate-limit, and export-contract tests complete; add database-backed endpoint integration coverage
 
 ### Integration Tests
 - [ ] End-to-end ingestion pipeline
@@ -325,6 +360,6 @@ Storage pivot implemented: MVP artifact storage is now local filesystem + Postgr
 
 Phase 2 is implemented: foundation storage/metadata pieces, Tier 1 catalog sync/backfill, Tier 2 raw source acquisition, version tracking, PDF parsing, table extraction, parent-child chunking, BGE-M3 embedding generation, pgvector dense indexing, OpenSearch BM25 indexing, re-index-only-changed cleanup, daily reports, and ingestion orchestration are in place.
 
-Phase 3 retrieval implementation has started: internal retrieval candidates, query embedding, metadata filters, pgvector dense search, OpenSearch BM25 search, Reciprocal Rank Fusion, BGE reranking, Evidence Card formatting, and a unified hybrid retrieval client are implemented. Gold-set tuning remains pending until the evaluation set exists.
+Phase 3 retrieval is implemented; gold-set tuning remains pending until the Phase 6 evaluation set exists. Phase 4 LangGraph orchestration and Phase 5 API backend, reporting, monitoring, security, persistence, and live migration validation are implemented.
 
-Next milestone: implement **Phase 4 LangGraph retrieval workflow nodes** or curate the **Phase 6 FDA gold set** for retrieval tuning.
+Next milestone: close the Phase 5B frontend API contract gates, then implement the **Next.js 15 + shadcn/ui frontend application** from `Docs/implementation/Plan-Phase 5B - Frontend Application.md`.

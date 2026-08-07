@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -86,3 +87,32 @@ async def run_agent(
         max_retries=settings.max_faithfulness_retries,
     )
     return await graph.ainvoke(state)
+
+
+async def run_agent_stream(
+    query: str,
+    *,
+    session_id: str | None = None,
+    filters: dict[str, str] | None = None,
+    llm_client: LLMClient | None = None,
+    dependencies: AgentNodeDependencies | None = None,
+) -> AsyncIterator[AgentState]:
+    """Run the compiled agent graph, yielding accumulated state after each node.
+
+    Intended for Phase 5 SSE routes: each yielded state exposes the latest
+    ``execution_trace`` entries so callers can emit node-boundary preview
+    events. The workflow does not stream individual LLM tokens through the
+    graph, so this is the finest-grained preview available.
+    """
+    settings = get_settings()
+    if dependencies is None:
+        dependencies = AgentNodeDependencies(llm_client=llm_client or build_llm_client(), settings=settings)
+    graph = build_agent_graph(dependencies)
+    state = initial_agent_state(
+        query,
+        session_id=session_id,
+        filters=filters,
+        max_retries=settings.max_faithfulness_retries,
+    )
+    async for state_update in graph.astream(state, stream_mode="values"):
+        yield state_update

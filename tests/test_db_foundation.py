@@ -2,7 +2,17 @@
 
 from __future__ import annotations
 
-from src.db.models import Base, GuidanceChunk, GuidanceRegistry, LifecycleState, SourceArtifact
+from src.db.models import (
+    AlertRecordORM,
+    Base,
+    ChatSessionRecord,
+    ChatTurnRecord,
+    GroundedSummaryRecord,
+    GuidanceChunk,
+    GuidanceRegistry,
+    LifecycleState,
+    SourceArtifact,
+)
 
 
 def test_guidance_registry_model_shape() -> None:
@@ -99,3 +109,15 @@ def test_guidance_chunk_model_shape() -> None:
         "updated_at",
     }
     assert expected_columns.issubset(table.columns.keys())
+
+
+def test_phase5_server_owned_record_shapes() -> None:
+    """Phase 5 records enforce durable ownership and alert idempotency metadata."""
+    assert ChatSessionRecord.__table__.primary_key.columns.keys() == ["id"]
+    assert ChatTurnRecord.__table__.columns["session_id"].foreign_keys
+    assert GroundedSummaryRecord.__table__.columns["document_slug"].foreign_keys
+    assert AlertRecordORM.__table__.columns["event_fingerprint"].nullable is False
+    assert any(
+        constraint.name == "uq_alert_records_event_fingerprint"
+        for constraint in AlertRecordORM.__table__.constraints
+    )

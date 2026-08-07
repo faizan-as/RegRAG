@@ -35,9 +35,7 @@ class Answer(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     text: str = Field(description="Generated answer text with inline citation markers.")
-    evidence: list[EvidenceCard] = Field(
-        description="Evidence Cards backing each cited claim."
-    )
+    evidence: list[EvidenceCard] = Field(description="Evidence Cards backing each cited claim.")
     confidence: float = Field(
         ge=0.0, le=1.0, description="Overall answer confidence from guardrails."
     )

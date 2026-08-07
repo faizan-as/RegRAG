@@ -28,15 +28,9 @@ class DocumentMetadata(BaseModel):
     source_url: HttpUrl = Field(description="Canonical FDA source URL.")
     status: DocumentStatus = Field(description="Draft, Final, or Withdrawn.")
     version_hash: str = Field(description="SHA-256 hash of the source document version.")
-    docket_number: str | None = Field(
-        default=None, description="FDA docket number when available."
-    )
-    docket_url: HttpUrl | None = Field(
-        default=None, description="FDA docket URL when available."
-    )
-    issuing_office: str | None = Field(
-        default=None, description="Issuing FDA center or office."
-    )
+    docket_number: str | None = Field(default=None, description="FDA docket number when available.")
+    docket_url: HttpUrl | None = Field(default=None, description="FDA docket URL when available.")
+    issuing_office: str | None = Field(default=None, description="Issuing FDA center or office.")
     center: str | None = Field(default=None, description="FDA center from the catalog.")
     topic: str | None = Field(default=None, description="Primary FDA guidance topic.")
     topics: list[str] = Field(
@@ -48,9 +42,7 @@ class DocumentMetadata(BaseModel):
     regulated_product: str | None = Field(
         default=None, description="Regulated product category from the FDA catalog."
     )
-    published_date: datetime | None = Field(
-        default=None, description="Original publication date."
-    )
+    published_date: datetime | None = Field(default=None, description="Original publication date.")
     issue_date: date | None = Field(default=None, description="FDA issue date.")
     fda_last_changed: datetime | None = Field(
         default=None, description="FDA catalog changed timestamp."
@@ -65,9 +57,7 @@ class DocumentMetadata(BaseModel):
         default=LifecycleState.ACTIVE,
         description="Registry lifecycle state derived from catalog diffs.",
     )
-    last_updated: datetime | None = Field(
-        default=None, description="Most recent FDA update date."
-    )
+    last_updated: datetime | None = Field(default=None, description="Most recent FDA update date.")
     cfr_references: list[str] = Field(
         default_factory=list, description="CFR references identified for metadata filters."
     )
@@ -127,3 +117,30 @@ class GuidanceDocument(BaseModel):
         default_factory=list,
         description="Ordered normalized section identifiers in the document.",
     )
+
+
+class SectionNavigationEntry(BaseModel):
+    """A single section entry for document section-tree navigation."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    section_id: str = Field(description="Normalized section identifier.")
+    section_title: str | None = Field(default=None, description="Human-readable section heading.")
+    page_number: int | None = Field(
+        default=None, ge=0, description="First page number for this section."
+    )
+
+
+class PassageResponse(BaseModel):
+    """A single cited passage resolved from a chunk id."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str = Field(description="Stable internal FDA document identifier.")
+    chunk_id: str = Field(description="Stable unique chunk identifier.")
+    section_id: str | None = Field(default=None, description="Normalized section identifier.")
+    section_title: str | None = Field(default=None, description="Human-readable section heading.")
+    page_number: int | None = Field(default=None, ge=0, description="Source PDF page number.")
+    text: str = Field(description="Exact passage text.")
+    source_url: HttpUrl = Field(description="FDA source URL.")
+    version_hash: str = Field(description="SHA-256 hash of the source document version.")

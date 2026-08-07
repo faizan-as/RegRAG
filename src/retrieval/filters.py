@@ -18,6 +18,8 @@ class RetrievalFilters(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    document_slug: str | None = None
+    version_hash: str | None = None
     center: str | None = None
     status: DocumentStatus | str | None = None
     lifecycle_state: LifecycleState | str | None = None
@@ -42,6 +44,10 @@ def build_postgres_filter_clauses(
     lifecycle_state = _enum_value(filters.lifecycle_state) or LifecycleState.ACTIVE.value
     clauses.append(GuidanceRegistry.lifecycle_state == lifecycle_state)
 
+    if filters.document_slug:
+        clauses.append(GuidanceChunk.document_slug == filters.document_slug)
+    if filters.version_hash:
+        clauses.append(GuidanceChunk.version_hash == filters.version_hash)
     if filters.center:
         clauses.append(GuidanceRegistry.center == filters.center)
     if filters.status:
@@ -76,6 +82,8 @@ def build_opensearch_filter_clauses(filters: RetrievalFilters | None = None) -> 
     lifecycle_state = _enum_value(filters.lifecycle_state) or LifecycleState.ACTIVE.value
     clauses.append({"term": {"lifecycle_state": lifecycle_state}})
 
+    _add_term(clauses, "document_slug", filters.document_slug)
+    _add_term(clauses, "version_hash", filters.version_hash)
     _add_term(clauses, "center", filters.center)
     _add_term(clauses, "status", _enum_value(filters.status))
     _add_term(clauses, "docket_id", filters.docket_id)

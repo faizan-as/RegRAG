@@ -6,6 +6,7 @@ import pytest
 
 from apps.api.schemas.search import RetrievalSource
 from src.retrieval.client import RetrievalError, hybrid_search
+from src.retrieval.models import RetrievalBackendStatus
 from tests.retrieval.utils import candidate
 
 
@@ -60,7 +61,8 @@ async def test_hybrid_search_keyword_only_fallback_still_reranks() -> None:
         reranker=reranker,
     )
 
-    assert result.dense_error == "dense down"
+    assert result.dense_error == "dense_unavailable"
+    assert result.dense_status == RetrievalBackendStatus.FAILED
     assert result.candidates[0].rerank_score == 2.0
     assert result.evidence_cards[0].confidence > 0.0
 
@@ -85,7 +87,8 @@ async def test_hybrid_search_reranker_failure_uses_zero_confidence_fallback() ->
         reranker=failing_reranker,
     )
 
-    assert result.reranker_error == "reranker down"
+    assert result.reranker_error == "reranker_unavailable"
+    assert result.reranker_status == RetrievalBackendStatus.FAILED
     assert result.candidates[0].reranker_failed is True
     assert result.evidence_cards[0].confidence == 0.0
 
@@ -97,7 +100,7 @@ async def test_hybrid_search_raises_when_both_retrievers_fail() -> None:
     def failing_keyword(*args, **kwargs):
         raise RuntimeError("keyword down")
 
-    with pytest.raises(RetrievalError, match="Both dense and keyword"):
+    with pytest.raises(RetrievalError, match="All configured retrieval backends") as exc_info:
         await hybrid_search(
             "query",
             session=object(),
@@ -106,6 +109,31 @@ async def test_hybrid_search_raises_when_both_retrievers_fail() -> None:
             dense_searcher=failing_dense,
             keyword_searcher=failing_keyword,
         )
+    assert exc_info.value.diagnostic_codes == ["dense_unavailable", "keyword_unavailable"]
+
+
+async def test_hybrid_search_returns_successful_empty_result() -> None:
+    """No matches are a successful empty result, not a dependency outage."""
+
+    async def empty_dense(*args, **kwargs):
+        return []
+
+    def empty_keyword(*args, **kwargs):
+        return []
+
+    result = await hybrid_search(
+        "query",
+        session=object(),
+        opensearch_client=object(),
+        embedding_model=_FakeEmbeddingModel(),
+        dense_searcher=empty_dense,
+        keyword_searcher=empty_keyword,
+    )
+
+    assert result.candidates == []
+    assert result.dense_status == RetrievalBackendStatus.EMPTY
+    assert result.keyword_status == RetrievalBackendStatus.EMPTY
+    assert result.reranker_status == RetrievalBackendStatus.SKIPPED
 
 
 class _FakeEmbeddingModel:

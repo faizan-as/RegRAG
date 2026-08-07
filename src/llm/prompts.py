@@ -7,6 +7,7 @@ from apps.api.schemas.evidence import EvidenceCard
 QUERY_UNDERSTAND_PROMPT_VERSION = "query-understand-v1"
 GROUNDED_ANSWER_PROMPT_VERSION = "grounded-answer-v1"
 FAITHFULNESS_PROMPT_VERSION = "faithfulness-v1"
+SUMMARY_PROMPT_VERSION = "summary-v1"
 
 
 def build_query_understand_prompt(query: str) -> str:
@@ -80,3 +81,31 @@ def refusal_prompt(reason: str) -> str:
         "Explain that a citation-backed FDA guidance answer cannot be provided for this request. "
         f"Reason: {reason}. Keep it concise and do not speculate."
     )
+
+
+_SUMMARY_INSTRUCTIONS = {
+    "summary": "Write a concise plain-language summary of the guidance document.",
+    "key_requirements": "List the concrete regulatory requirements the guidance imposes, as bullet points.",
+    "key_changes": (
+        "Describe what changed between the compared document versions. "
+        "If no prior version is supplied, describe the notable requirements introduced in this version."
+    ),
+}
+
+
+def build_summary_prompt(document_title: str, summary_type: str, evidence_cards: list[EvidenceCard]) -> str:
+    """Build a citation-first grounded summarization prompt."""
+    instruction = _SUMMARY_INSTRUCTIONS.get(summary_type, _SUMMARY_INSTRUCTIONS["summary"])
+    return f"""You are an FDA regulatory intelligence assistant, not legal counsel.
+{instruction}
+Answer only from the Evidence Cards below. Every factual claim must use inline citation markers such as [1] that exactly match the provided Evidence Card ids. Do not renumber citations.
+If the evidence does not support this output, say that the available FDA guidance evidence is insufficient.
+Do not make final legal, compliance, FDA approval, or submission-acceptance determinations.
+
+Document: {document_title}
+
+Evidence Cards:
+{format_evidence_context(evidence_cards)}
+
+Return a concise, citation-backed result.
+"""

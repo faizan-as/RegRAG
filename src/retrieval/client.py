@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
@@ -9,7 +10,7 @@ from apps.api.settings import get_settings
 from src.retrieval.filters import RetrievalFilters
 from src.retrieval.formatting import candidates_to_evidence_cards, candidates_to_search_results
 from src.retrieval.hybrid import reciprocal_rank_fusion
-from src.retrieval.models import HybridSearchResult, RetrievalCandidate
+from src.retrieval.models import HybridSearchResult, RetrievalBackendStatus, RetrievalCandidate
 from src.retrieval.opensearch_client import search_keyword_chunks
 from src.retrieval.pgvector_client import search_dense_chunks
 from src.retrieval.query_embedding import embed_query
@@ -19,10 +20,16 @@ from src.retrieval.reranker import rerank_results
 class RetrievalError(RuntimeError):
     """Raised when hybrid retrieval cannot produce candidates."""
 
+    def __init__(self, message: str, *, diagnostic_codes: list[str] | None = None) -> None:
+        super().__init__(message)
+        self.diagnostic_codes = diagnostic_codes or []
+
 
 DenseSearcher = Callable[..., Awaitable[list[RetrievalCandidate]]]
 KeywordSearcher = Callable[..., list[RetrievalCandidate]]
 Reranker = Callable[..., list[RetrievalCandidate]]
+
+logger = logging.getLogger(__name__)
 
 
 async def hybrid_search(
@@ -45,6 +52,8 @@ async def hybrid_search(
     final_top_k = rerank_top_k or settings.rerank_top_k
     dense_error = None
     keyword_error = None
+    dense_status = RetrievalBackendStatus.SUCCESS
+    keyword_status = RetrievalBackendStatus.SUCCESS
 
     try:
         query_embedding = embed_query(query_text, model=embedding_model, model_name=settings.embedding_model)
@@ -57,7 +66,12 @@ async def hybrid_search(
         )
     except Exception as exc:
         dense_candidates = []
-        dense_error = str(exc)
+        dense_error = "dense_unavailable"
+        dense_status = RetrievalBackendStatus.FAILED
+        logger.warning("dense_retrieval_failed: %s", type(exc).__name__)
+    else:
+        if not dense_candidates:
+            dense_status = RetrievalBackendStatus.EMPTY
 
     try:
         keyword_candidates = keyword_searcher(
@@ -69,10 +83,34 @@ async def hybrid_search(
         )
     except Exception as exc:
         keyword_candidates = []
-        keyword_error = str(exc)
+        keyword_error = "keyword_unavailable"
+        keyword_status = RetrievalBackendStatus.FAILED
+        logger.warning("keyword_retrieval_failed: %s", type(exc).__name__)
+    else:
+        if not keyword_candidates:
+            keyword_status = RetrievalBackendStatus.EMPTY
+
+    if (
+        dense_status == RetrievalBackendStatus.FAILED
+        and keyword_status == RetrievalBackendStatus.FAILED
+    ):
+        raise RetrievalError(
+            "All configured retrieval backends are unavailable.",
+            diagnostic_codes=["dense_unavailable", "keyword_unavailable"],
+        )
 
     if not dense_candidates and not keyword_candidates:
-        raise RetrievalError("Both dense and keyword retrieval failed or returned no candidates")
+        return HybridSearchResult(
+            query_text=query_text,
+            candidates=[],
+            search_results=[],
+            evidence_cards=[],
+            dense_status=dense_status,
+            keyword_status=keyword_status,
+            reranker_status=RetrievalBackendStatus.SKIPPED,
+            dense_error=dense_error,
+            keyword_error=keyword_error,
+        )
 
     fused = reciprocal_rank_fusion(
         dense_candidates,
@@ -80,6 +118,7 @@ async def hybrid_search(
         top_k=retrieval_top_k,
     )
     reranker_error = None
+    reranker_status = RetrievalBackendStatus.SUCCESS
     try:
         reranked = reranker(
             query_text,
@@ -88,7 +127,9 @@ async def hybrid_search(
             top_k=final_top_k,
         )
     except Exception as exc:
-        reranker_error = str(exc)
+        reranker_error = "reranker_unavailable"
+        reranker_status = RetrievalBackendStatus.FAILED
+        logger.warning("reranker_failed: %s", type(exc).__name__)
         reranked = _fallback_reranked(fused, top_k=final_top_k)
 
     return HybridSearchResult(
@@ -96,6 +137,9 @@ async def hybrid_search(
         candidates=reranked,
         search_results=candidates_to_search_results(reranked),
         evidence_cards=candidates_to_evidence_cards(reranked),
+        dense_status=dense_status,
+        keyword_status=keyword_status,
+        reranker_status=reranker_status,
         dense_error=dense_error,
         keyword_error=keyword_error,
         reranker_error=reranker_error,

@@ -64,9 +64,7 @@ class AlertRecord(BaseModel):
         default=None, description="Prior version hash, if the content changed."
     )
     current_version_hash: str = Field(description="Current version hash.")
-    summary: str | None = Field(
-        default=None, description="Short human-readable change summary."
-    )
+    summary: str | None = Field(default=None, description="Short human-readable change summary.")
     detected_at: datetime = Field(
         default_factory=lambda: datetime.now(UTC),
         description="When the change was detected.",

@@ -107,6 +107,15 @@ MinIO/S3 is not required for the MVP local stack.
 | OpenSearch | 9200 | BM25 keyword search                                 |
 | Langfuse   | 3000 | Tracing / observability                             |
 
+If port `5432` is already in use, set a different host port and keep
+`DATABASE_URL` aligned with it before starting PostgreSQL:
+
+```powershell
+$env:POSTGRES_PORT = "55432"
+$env:DATABASE_URL = "postgresql+asyncpg://fda:fda@localhost:55432/fda_copilot"
+docker compose up -d --wait postgres
+```
+
 Useful Docker commands:
 
 ```powershell

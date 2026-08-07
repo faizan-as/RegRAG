@@ -32,15 +32,9 @@ class Chunk(BaseModel):
     source_url: str | None = Field(
         default=None, description="Source FDA URL used for citation resolution."
     )
-    section_id: str | None = Field(
-        default=None, description="Normalized section identifier."
-    )
-    section_title: str | None = Field(
-        default=None, description="Human-readable section heading."
-    )
-    page_number: int | None = Field(
-        default=None, ge=0, description="Source PDF page number."
-    )
+    section_id: str | None = Field(default=None, description="Normalized section identifier.")
+    section_title: str | None = Field(default=None, description="Human-readable section heading.")
+    page_number: int | None = Field(default=None, ge=0, description="Source PDF page number.")
     char_start: int | None = Field(
         default=None, ge=0, description="Inclusive character offset in parsed document text."
     )
