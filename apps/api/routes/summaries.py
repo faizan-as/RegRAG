@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.audit import add_audit_event
 from apps.api.deps import get_db_session, get_resources
-from apps.api.errors import RetrievalUnavailableError
+from apps.api.errors import NotFoundAPIError, RetrievalUnavailableError
 from apps.api.ratelimit import enforce_summary_rate_limit
 from apps.api.resources import AppResources
+from apps.api.schemas.evidence import EvidenceCard
 from apps.api.schemas.summaries import SummaryRequest, SummaryResult
 from apps.api.security import AuthenticatedUser, require_roles
 from src.common.clients import get_postgres_sessionmaker
@@ -17,6 +20,22 @@ from src.db.models import GroundedSummaryRecord
 from src.reports.summarizer import SummaryDependencies, generate_summary
 
 router = APIRouter(prefix="/api/summaries", tags=["summaries"])
+
+
+def _summary_result(record: GroundedSummaryRecord) -> SummaryResult:
+    return SummaryResult(
+        summary_id=str(record.id),
+        document_id=record.document_slug or "",
+        summary_type=record.summary_type,
+        text=record.text,
+        evidence=[EvidenceCard.model_validate(card) for card in record.evidence],
+        refused=record.refused,
+        refusal_reason=record.refusal_reason,
+        current_version_hash=record.current_version_hash,
+        previous_version_hash=record.previous_version_hash,
+        faithfulness_passed=record.guardrail_metadata.get("faithfulness_passed"),
+        generated_at=record.created_at,
+    )
 
 
 @router.post("", response_model=SummaryResult, dependencies=[Depends(enforce_summary_rate_limit)])
@@ -71,3 +90,16 @@ async def create_summary(
     )
     await db.commit()
     return result.model_copy(update={"summary_id": str(record.id)})
+
+
+@router.get("/{summary_id}", response_model=SummaryResult)
+async def get_summary(
+    summary_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    user: AuthenticatedUser = Depends(require_roles("researcher", "admin")),
+) -> SummaryResult:
+    """Return a durable grounded summary owned by the caller."""
+    record = await db.get(GroundedSummaryRecord, summary_id)
+    if record is None or record.owner_user_id != user.user_id:
+        raise NotFoundAPIError("Grounded summary was not found.")
+    return _summary_result(record)

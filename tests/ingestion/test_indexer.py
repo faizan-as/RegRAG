@@ -7,9 +7,9 @@ from datetime import UTC, date, datetime
 import pytest
 from sqlalchemy.dialects import postgresql
 
+import src.ingestion.indexer as indexer
 from apps.api.schemas.chunks import Chunk, ChunkType, EmbeddedChunk
 from apps.api.schemas.documents import DocumentMetadata, DocumentStatus
-import src.ingestion.indexer as indexer
 from src.ingestion.indexer import (
     build_guidance_chunk_rows,
     build_keyword_documents,
@@ -102,7 +102,9 @@ def test_build_guidance_chunk_rows_includes_evidence_payload() -> None:
         issue_date=date(2026, 7, 21),
     )
 
-    rows = build_guidance_chunk_rows([_embedded_chunk("example-guidance:a:1")], document_metadata=metadata)
+    rows = build_guidance_chunk_rows(
+        [_embedded_chunk("example-guidance:a:1")], document_metadata=metadata
+    )
 
     assert len(rows) == 1
     row = rows[0]
@@ -300,7 +302,9 @@ async def test_mark_registry_indexed_updates_last_synced_at() -> None:
 
 
 @pytest.mark.asyncio
-async def test_reindex_changed_document_deletes_indexes_upserts_and_marks_synced(monkeypatch) -> None:
+async def test_reindex_changed_document_deletes_indexes_upserts_and_marks_synced(
+    monkeypatch,
+) -> None:
     calls: list[tuple[str, object]] = []
     synced_at = datetime(2026, 7, 22, tzinfo=UTC)
 
@@ -351,8 +355,8 @@ async def test_reindex_changed_document_deletes_indexes_upserts_and_marks_synced
     assert outcome.keyword_indexed == 3
     assert calls == [
         ("delete_dense", ("example-guidance", "a" * 64)),
-        ("delete_keyword", ("fda_guidance", "example-guidance", "a" * 64)),
         ("ensure", "fda_guidance"),
+        ("delete_keyword", ("fda_guidance", "example-guidance", "a" * 64)),
         ("upsert", 2),
         ("index", ("fda_guidance", 2)),
         ("mark", ("example-guidance", synced_at)),

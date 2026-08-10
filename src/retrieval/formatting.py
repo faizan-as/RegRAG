@@ -57,7 +57,9 @@ def candidate_to_evidence_card(
     document_id = _required("document_id", payload.get("slug") or candidate.chunk.document_id)
     title = _required("title", payload.get("doc_title"))
     source_url = _required("source_url", payload.get("source_url") or candidate.chunk.source_url)
-    version_hash = _required("version_hash", payload.get("version_hash") or candidate.chunk.version_hash)
+    version_hash = _required(
+        "version_hash", payload.get("version_hash") or candidate.chunk.version_hash
+    )
     status = _required("document_status", payload.get("status"))
     retrieval_score = _retrieval_score(candidate)
     rerank_score = _required_score("rerank_score", candidate.rerank_score)
@@ -66,6 +68,7 @@ def candidate_to_evidence_card(
     return EvidenceCard(
         citation_id=citation_id,
         document_id=document_id,
+        chunk_id=candidate.chunk_id,
         title=title,
         section_id=payload.get("section_id") or candidate.chunk.section_id,
         section_title=payload.get("section_title") or candidate.chunk.section_title,

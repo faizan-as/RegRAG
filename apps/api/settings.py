@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     app_host: str = Field(default="0.0.0.0", alias="APP_HOST")
     app_port: int = Field(default=8000, alias="APP_PORT")
+    local_demo_mode: bool = Field(
+        default=False,
+        alias="LOCAL_DEMO_MODE",
+        description="Use deterministic local model adapters. Development only.",
+    )
 
     # ---- Vector (pgvector) & keyword search ----
     # Dense vectors live in PostgreSQL via pgvector (see database_url below).
@@ -155,6 +160,8 @@ class Settings(BaseSettings):
         """Reject development-only authentication bypass outside development."""
         if self.auth_dev_bypass and self.app_env != AppEnv.DEVELOPMENT:
             raise ValueError("AUTH_DEV_BYPASS is allowed only when APP_ENV=development")
+        if self.local_demo_mode and self.app_env != AppEnv.DEVELOPMENT:
+            raise ValueError("LOCAL_DEMO_MODE is allowed only when APP_ENV=development")
         return self
 
 

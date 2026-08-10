@@ -14,7 +14,7 @@ from apps.api.errors import RetrievalUnavailableError, ValidationAPIError
 from apps.api.ratelimit import enforce_search_rate_limit
 from apps.api.resources import AppResources
 from apps.api.schemas.common import TransparencyMetadata
-from apps.api.schemas.search import SearchRequest, SearchResponse
+from apps.api.schemas.search import SearchFilters, SearchRequest, SearchResponse
 from apps.api.security import AuthenticatedUser, require_roles
 from src.retrieval.client import RetrievalError, hybrid_search
 from src.retrieval.filters import RetrievalFilters
@@ -22,8 +22,12 @@ from src.retrieval.filters import RetrievalFilters
 router = APIRouter(prefix="/api/search", tags=["search"])
 
 
-def normalize_filters(raw_filters: dict[str, Any]) -> tuple[RetrievalFilters, list[str]]:
+def normalize_filters(
+    raw_filters: SearchFilters | dict[str, Any],
+) -> tuple[RetrievalFilters, list[str]]:
     """Validate known public filters and report unknown keys."""
+    if isinstance(raw_filters, SearchFilters):
+        raw_filters = raw_filters.model_dump(exclude_none=True)
     allowed = set(RetrievalFilters.model_fields)
     known = {key: value for key, value in raw_filters.items() if key in allowed}
     ignored = sorted(key for key in raw_filters if key not in allowed)

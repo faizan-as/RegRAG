@@ -10,6 +10,7 @@ horizontal scaling, per the Phase 5 plan's documented decision.
 from __future__ import annotations
 
 import asyncio
+import math
 import time
 from collections import defaultdict
 from collections.abc import AsyncIterator, Awaitable, Callable
@@ -40,7 +41,11 @@ class InMemoryRateLimiter:
             while hits and hits[0] < cutoff:
                 hits.pop(0)
             if len(hits) >= self.max_requests:
-                raise RateLimitError("Rate limit exceeded. Please try again later.")
+                retry_after = max(1, math.ceil(hits[0] + self.window_seconds - now))
+                raise RateLimitError(
+                    "Rate limit exceeded. Please try again later.",
+                    headers={"Retry-After": str(retry_after)},
+                )
             hits.append(now)
 
 
@@ -84,7 +89,7 @@ class ActiveStreamLimiter:
     async def acquire(self, key: str, maximum: int) -> None:
         async with self._lock:
             if self._active[key] >= maximum:
-                raise RateLimitError("Too many active chat streams.")
+                raise RateLimitError("Too many active chat streams.", headers={"Retry-After": "1"})
             self._active[key] += 1
 
     async def release(self, key: str) -> None:

@@ -28,3 +28,17 @@ class ErrorResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     error: ErrorDetail
+
+
+API_ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
+    status_code: {"model": ErrorResponse, "description": description}
+    for status_code, description in {
+        401: "Authentication required or token invalid.",
+        403: "Caller is not authorized for this operation.",
+        404: "Resource not found or not visible to the caller.",
+        422: "Request validation failed.",
+        429: "Rate limit exceeded.",
+        500: "Unexpected internal error.",
+        503: "A required service is unavailable.",
+    }.items()
+}

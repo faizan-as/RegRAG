@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.audit import add_audit_event
@@ -46,17 +46,22 @@ def _response(record: AlertRecordORM) -> AlertResponse:
 @router.get("", response_model=AlertListResponse)
 async def get_alerts(
     status: AlertStatus | None = None,
-    limit: int = 100,
+    limit: int = Query(default=100, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
     db: AsyncSession = Depends(get_db_session),
     user: AuthenticatedUser = Depends(require_roles("researcher", "admin")),
 ) -> AlertListResponse:
     """List recent update alerts for authenticated researchers."""
     del user
-    bounded_limit = max(1, min(limit, 200))
     records = await list_alerts(
-        db, status=ORMAlertStatus(status.value) if status is not None else None, limit=bounded_limit
+        db,
+        status=ORMAlertStatus(status.value) if status is not None else None,
+        limit=limit,
+        offset=offset,
     )
-    return AlertListResponse(alerts=[_response(record) for record in records])
+    return AlertListResponse(
+        alerts=[_response(record) for record in records], limit=limit, offset=offset
+    )
 
 
 @router.patch("/{alert_id}", response_model=AlertResponse)

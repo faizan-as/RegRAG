@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import Float, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.api.schemas.chunks import Chunk, ChunkType
@@ -33,9 +33,9 @@ async def search_dense_chunks(
             f"query_embedding has dimension {len(query_embedding)}; expected {expected_dim}"
         )
 
-    distance = GuidanceChunk.embedding.op("<=>")([float(value) for value in query_embedding]).label(
-        "distance"
-    )
+    distance = GuidanceChunk.embedding.op("<=>", return_type=Float)(
+        [float(value) for value in query_embedding]
+    ).label("distance")
     statement = (
         select(GuidanceChunk, distance)
         .join(GuidanceRegistry, GuidanceRegistry.slug == GuidanceChunk.document_slug)

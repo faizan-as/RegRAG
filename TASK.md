@@ -207,24 +207,27 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` complete.
 > See `Docs/implementation/Plan-Phase 5B - Frontend Application.md`.
 
 - [x] Create the separate Next.js 15 + shadcn/ui frontend implementation plan
-- [ ] Add paginated `GET /api/sessions` for session restoration
-- [ ] Add stable `chunk_id` targets to Evidence Cards
-- [ ] Replace public object-store keys with authorized artifact descriptors
-- [ ] Add owner-checked `GET /api/summaries/{summary_id}` for durable reload
-- [ ] Add typed search filters, structured errors, and an SSE protocol artifact to OpenAPI generation
-- [ ] Expose download/request/rate-limit headers through CORS and emit `Retry-After`
-- [ ] Add pagination to `GET /api/alerts`
-- [ ] Scaffold `apps/web` with Next.js 15, TypeScript strict mode, Tailwind, and shadcn/ui
-- [ ] Add Supabase SSR authentication and protected researcher/admin layouts
-- [ ] Generate typed FastAPI contracts and implement the authenticated API/SSE clients
-- [ ] Implement hybrid search, filters, evidence results, and diagnostics
-- [ ] Implement durable chat sessions, node-boundary streaming, refusals, and citation panels
-- [ ] Implement the PDF/HTML document viewer, section navigation, and passage highlighting
-- [ ] Implement grounded summaries, key changes, and authorized exports
-- [ ] Implement update alerts and admin audit inspection
-- [ ] Add responsive, accessibility, security, and performance hardening
-- [ ] Add Vitest, Testing Library, MSW, Playwright, and axe coverage
-- [ ] Pass frontend lint, typecheck, test, build, accessibility, and browser workflow gates
+- [x] Add paginated `GET /api/sessions` for session restoration
+- [x] Add stable `chunk_id` targets to Evidence Cards
+- [x] Replace public object-store keys with authorized artifact descriptors
+- [x] Add owner-checked `GET /api/summaries/{summary_id}` for durable reload
+- [x] Add typed search filters, structured errors, and an SSE protocol artifact to OpenAPI generation
+- [x] Expose download/request/rate-limit headers through CORS and emit `Retry-After`
+- [x] Add pagination to `GET /api/alerts`
+- [x] Scaffold `apps/web` with Next.js 15, TypeScript strict mode, Tailwind, and shadcn/ui
+- [x] Add Supabase SSR authentication and protected researcher/admin layouts
+- [x] Generate typed FastAPI contracts and implement the authenticated API client
+- [x] Implement authenticated SSE client integration for chat stream workflows
+- [x] Implement hybrid search, filters, evidence results, and diagnostics
+- [x] Implement durable chat sessions, node-boundary streaming, refusals, and citation panels
+- [x] Implement the PDF/HTML document viewer, section navigation, and passage highlighting
+- [x] Implement grounded summaries, key changes, and authorized exports
+- [x] Implement update alerts and admin audit inspection
+- [x] Add responsive, accessibility, security, and performance hardening
+- [x] Add Vitest, Testing Library, MSW, Playwright, and axe coverage
+- [x] Pass generated-contract, lint, strict typecheck, 51-test, production-build, and unauthenticated desktop/mobile accessibility/browser gates
+- [x] Run credentialed authenticated Playwright workflows with `E2E_USER_EMAIL` and `E2E_USER_PASSWORD`
+- [ ] Resolve four upstream Next.js 15 production audit findings when compatible patched transitive releases are available
 
 ---
 
@@ -347,6 +350,8 @@ Legend: `[ ]` pending, `[~]` in progress, `[x]` complete.
 
 ## Discovered During Work
 - [x] Widen `guidance_registry.regulated_product` and `guidance_registry.docket_id` for long FDA catalog values (`20260720_0003`)
+- [x] Provision local Supabase Auth and a confirmed development login user
+- [x] Add a safe local demo runtime and real FDA seed corpus for end-to-end application workflows
 
 ---
 
@@ -362,4 +367,6 @@ Phase 2 is implemented: foundation storage/metadata pieces, Tier 1 catalog sync/
 
 Phase 3 retrieval is implemented; gold-set tuning remains pending until the Phase 6 evaluation set exists. Phase 4 LangGraph orchestration and Phase 5 API backend, reporting, monitoring, security, persistence, and live migration validation are implemented.
 
-Next milestone: close the Phase 5B frontend API contract gates, then implement the **Next.js 15 + shadcn/ui frontend application** from `Docs/implementation/Plan-Phase 5B - Frontend Application.md`.
+Phase 5B is implemented: the Next.js 15 + shadcn/ui application includes Supabase SSR authentication, typed API/SSE clients, search, durable chat, citation navigation, document viewing, summaries, exports, alerts, audit inspection, and desktop/mobile accessibility coverage. Credentialed authenticated Playwright workflows and upstream Next.js 15 dependency advisories remain tracked above.
+
+Next milestone: complete the Phase 6 evaluation gold set and observability integration.

@@ -21,6 +21,7 @@ class EvidenceCard(BaseModel):
 
     citation_id: str = Field(description="Stable answer-local citation marker, such as '[1]'.")
     document_id: str = Field(description="Stable internal FDA document identifier.")
+    chunk_id: str = Field(description="Stable source chunk identifier for exact passage lookup.")
     title: str = Field(description="FDA guidance title.")
     section_id: str | None = Field(
         default=None, description="Normalized section identifier when available."

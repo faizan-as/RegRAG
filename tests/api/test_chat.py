@@ -37,6 +37,7 @@ class _FakeGraph:
         card = EvidenceCard(
             citation_id="[1]",
             document_id="guidance-1",
+            chunk_id="guidance-1:version:1",
             title="FDA Guidance",
             section_id="section-1",
             section_title="Scope",

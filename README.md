@@ -21,7 +21,7 @@ for the implementation roadmap.
 
 ```text
 apps/api/        FastAPI application (routes, schemas, deps, settings)
-apps/web/        Next.js frontend (added later)
+apps/web/        Next.js 15 authenticated regulatory research frontend
 src/agents/      LangGraph workflow (state, nodes, edges, guardrails)
 src/ingestion/   FDA scraping, parsing, chunking, embeddings
 src/retrieval/   pgvector, OpenSearch, RRF, reranker
@@ -37,6 +37,69 @@ tests/           Unit and integration tests
 ```
 
 ## Local Development
+
+### Operational Local Demo
+
+The local demo profile keeps PostgreSQL, pgvector, OpenSearch, LangGraph, citation binding,
+Supabase RBAC, and audit persistence active. It replaces only cloud LLM and large BGE model
+downloads with deterministic development adapters. Never enable it in staging or pilot.
+
+1. Configure `.env` with a database port that matches Docker and both frontend origins:
+
+   ```text
+   APP_ENV=development
+   LOCAL_DEMO_MODE=true
+   POSTGRES_PORT=55432
+   DATABASE_URL=postgresql+asyncpg://fda:fda@localhost:55432/fda_copilot
+   CORS_ALLOWED_ORIGINS=http://localhost:3100,http://127.0.0.1:3100
+   ```
+
+2. Start infrastructure, migrate the application database, and start local Supabase:
+
+   ```powershell
+   docker compose up -d --wait
+   python -m alembic upgrade head
+   npx --yes supabase@latest start
+   ```
+
+3. Seed one preserved, parsed, and dual-indexed FDA guidance PDF from the included catalog sample:
+
+   ```powershell
+   python -m src.ingestion.local_seed --catalog-path "Docs/search-for-guidance-sample.json" --limit 1
+   ```
+
+   The command is idempotent by document version hash and is available only when
+   `LOCAL_DEMO_MODE=true`.
+
+4. Start the API and frontend in separate terminals:
+
+   ```powershell
+   python -m uvicorn apps.api.main:app --host 0.0.0.0 --port 8000
+   ```
+
+   ```powershell
+   Set-Location apps/web
+   npm install
+   npm run dev -- --hostname 127.0.0.1 --port 3100
+   ```
+
+5. Create a local user as described below, then open `http://127.0.0.1:3100/login`.
+   API liveness and readiness are available at `http://127.0.0.1:8000/health` and
+   `http://127.0.0.1:8000/ready`.
+
+To run the credentialed browser suite:
+
+```powershell
+Set-Location apps/web
+$env:E2E_USER_EMAIL = "admin@regrag.local"
+$env:E2E_USER_PASSWORD = "your-local-password"
+npm run test:e2e
+```
+
+Production and shared environments should leave `LOCAL_DEMO_MODE=false` and configure Azure
+OpenAI, BGE-M3, and BGE-Reranker-Large as described in `.env.example`.
+
+### Standard Development Setup
 
 1. Copy the environment template:
 
@@ -75,6 +138,75 @@ tests/           Unit and integration tests
    ```powershell
    uvicorn apps.api.main:app --reload --port 8000
    ```
+
+7. Start local Supabase Auth:
+
+   ```powershell
+   npx --yes supabase@latest start
+   ```
+
+   Supabase Studio is available at `http://127.0.0.1:54323`. Run
+   `npx --yes supabase@latest status` to obtain the local API URL and publishable key.
+
+8. Configure and run the frontend:
+
+   ```powershell
+   Copy-Item apps/web/.env.example apps/web/.env.local
+   Set-Location apps/web
+   npm install
+   npm run dev -- --port 3100
+   ```
+
+   Set the Supabase API URL and publishable key in `apps/web/.env.local`. The frontend runs at
+   `http://localhost:3100` and calls the API through `NEXT_PUBLIC_API_BASE_URL`.
+
+### Create Local Login Users
+
+1. Start Supabase and open Studio:
+
+   ```powershell
+   npx --yes supabase@latest start
+   ```
+
+   Open `http://127.0.0.1:54323`, select **Authentication > Users**, and choose **Add user**.
+
+2. Enter the user's email and a development password. Enable automatic email confirmation so the
+   account can sign in immediately without using the local email inbox.
+
+3. Assign the application role in **SQL Editor**. The application reads trusted roles from the
+   `app_metadata.roles` JWT claim, which Supabase stores in `auth.users.raw_app_meta_data`.
+
+   Create a researcher:
+
+   ```sql
+   UPDATE auth.users
+   SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb)
+       || '{"roles":["researcher"]}'::jsonb
+   WHERE email = 'researcher@regrag.local';
+   ```
+
+   Create an administrator with access to audit and alert-management workflows:
+
+   ```sql
+   UPDATE auth.users
+   SET raw_app_meta_data = COALESCE(raw_app_meta_data, '{}'::jsonb)
+       || '{"roles":["admin","researcher"]}'::jsonb
+   WHERE email = 'admin@regrag.local';
+   ```
+
+   Replace the example email with the address created in Studio. Do not put authorization roles in
+   `raw_user_meta_data`; users can modify that metadata themselves. A user without an explicit
+   application role is treated as a researcher.
+
+4. If the user was already signed in when the role changed, sign out and sign in again so Supabase
+   issues a new access token containing the updated role claim.
+
+5. Open `http://localhost:3100/login` and sign in with the created email and password. An admin
+   account should show the audit navigation and alert-management controls.
+
+Local users persist across `supabase stop` and `supabase start`. Running
+`npx --yes supabase@latest db reset` recreates the local database and removes users, so create them
+again after a reset.
 
 ## Local Configuration
 

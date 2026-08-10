@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from sqlalchemy.dialects import postgresql
 import pytest
+from sqlalchemy import Float
+from sqlalchemy.dialects import postgresql
 
 from apps.api.schemas.chunks import ChunkType
 from apps.api.schemas.search import RetrievalSource
@@ -29,6 +30,7 @@ async def test_search_dense_chunks_submits_pgvector_query_and_maps_candidates() 
     compiled = str(session.statement.compile(dialect=postgresql.dialect()))
     assert "guidance_chunks.embedding <=>" in compiled
     assert "guidance_registry" in compiled
+    assert isinstance(list(session.statement.selected_columns)[-1].type, Float)
     assert candidates[0].chunk.chunk_id == "example-guidance:a:1"
     assert candidates[0].chunk.chunk_type == ChunkType.CHILD
     assert candidates[0].chunk.page_number == 3

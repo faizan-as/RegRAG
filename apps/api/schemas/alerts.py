@@ -46,6 +46,8 @@ class AlertListResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     alerts: list[AlertResponse] = Field(default_factory=list)
+    limit: int
+    offset: int
 
 
 class AlertUpdateRequest(BaseModel):

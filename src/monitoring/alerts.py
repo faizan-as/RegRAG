@@ -80,9 +80,15 @@ async def list_alerts(
     *,
     status: AlertStatus | None = None,
     limit: int = 100,
+    offset: int = 0,
 ) -> list[AlertRecordORM]:
     """List alert records ordered by most-recently-detected, optionally filtered by status."""
-    stmt = select(AlertRecordORM).order_by(AlertRecordORM.detected_at.desc()).limit(limit)
+    stmt = (
+        select(AlertRecordORM)
+        .order_by(AlertRecordORM.detected_at.desc(), AlertRecordORM.id)
+        .offset(offset)
+        .limit(limit)
+    )
     if status is not None:
         stmt = stmt.where(AlertRecordORM.status == status.value)
     result = await session.scalars(stmt)

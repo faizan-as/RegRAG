@@ -13,9 +13,10 @@ from apps.api.deps import get_artifact_store_dep, get_db_session
 from apps.api.errors import NotFoundAPIError
 from apps.api.ratelimit import enforce_document_rate_limit
 from apps.api.schemas.documents import (
+    DocumentArtifact,
     DocumentMetadata,
     DocumentStatus,
-    DocumentVersion,
+    DocumentVersionResponse,
     GuidanceDocument,
     PassageResponse,
     SectionNavigationEntry,
@@ -68,7 +69,7 @@ async def get_document(
     chunks = list(
         await session.scalars(
             select(GuidanceChunk)
-            .where(GuidanceChunk.document_slug == document_id, GuidanceChunk.chunk_type == "parent")
+            .where(GuidanceChunk.document_slug == document_id)
             .order_by(GuidanceChunk.chunk_id)
         )
     )
@@ -79,11 +80,10 @@ async def get_document(
         raise NotFoundAPIError("No indexed version exists for this FDA guidance document.")
     status = _document_status(record)
     versions = [
-        DocumentVersion(
+        DocumentVersionResponse(
             document_id=document_id,
             version_hash=artifact.version_hash,
             source_url=artifact.source_url or source_url,
-            raw_object_key=artifact.object_key,
             status=status,
             lifecycle_state=record.lifecycle_state,
             fda_last_changed=record.fda_last_changed,
@@ -115,6 +115,17 @@ async def get_document(
         ),
         versions=versions,
         section_ids=list(dict.fromkeys(chunk.section_id for chunk in chunks if chunk.section_id)),
+        artifacts=[
+            DocumentArtifact(
+                artifact_id=artifact.id,
+                content_type=artifact.content_type,
+                artifact_kind=artifact.artifact_kind,
+                version_hash=artifact.version_hash,
+                size_bytes=artifact.size_bytes,
+                created_at=artifact.created_at,
+            )
+            for artifact in artifacts
+        ],
     )
 
 
@@ -128,7 +139,7 @@ async def get_sections(
     await _registry_or_404(session, document_id)
     chunks = await session.scalars(
         select(GuidanceChunk)
-        .where(GuidanceChunk.document_slug == document_id, GuidanceChunk.chunk_type == "parent")
+        .where(GuidanceChunk.document_slug == document_id)
         .order_by(GuidanceChunk.chunk_id)
     )
     entries: dict[str, SectionNavigationEntry] = {}

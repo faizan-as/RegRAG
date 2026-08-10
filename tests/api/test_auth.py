@@ -59,3 +59,8 @@ def test_wrong_issuer_is_rejected() -> None:
 def test_development_bypass_is_rejected_outside_development() -> None:
     with pytest.raises(ValidationError, match="AUTH_DEV_BYPASS"):
         Settings(_env_file=None, APP_ENV="pilot", AUTH_DEV_BYPASS=True)
+
+
+def test_local_demo_mode_is_rejected_outside_development() -> None:
+    with pytest.raises(ValidationError, match="LOCAL_DEMO_MODE"):
+        Settings(_env_file=None, APP_ENV="pilot", LOCAL_DEMO_MODE=True)

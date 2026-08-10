@@ -8,6 +8,11 @@ from typing import Any
 
 from fastapi import FastAPI
 
+from apps.api.local_runtime import (
+    LocalEmbeddingModel,
+    LocalGroundedLLMClient,
+    LocalRerankerModel,
+)
 from apps.api.settings import Settings, get_settings
 from src.common.clients import get_opensearch_client, get_postgres_sessionmaker
 from src.common.db import dispose_engine
@@ -43,24 +48,29 @@ async def initialize_resources(app: FastAPI) -> AppResources:
     except Exception:
         resources.startup_errors["opensearch"] = "initialization_failed"
 
-    try:
-        resources.llm_client = build_llm_client(settings)
-    except Exception:
-        resources.startup_errors["llm"] = "configuration_invalid"
+    if settings.local_demo_mode:
+        resources.llm_client = LocalGroundedLLMClient()
+        resources.embedding_model = LocalEmbeddingModel(settings.embedding_dim)
+        resources.reranker_model = LocalRerankerModel()
+    else:
+        try:
+            resources.llm_client = build_llm_client(settings)
+        except Exception:
+            resources.startup_errors["llm"] = "configuration_invalid"
 
-    try:
-        resources.embedding_model = await asyncio.to_thread(
-            load_embedding_model, settings.embedding_model
-        )
-    except Exception:
-        resources.startup_errors["embedding_model"] = "initialization_failed"
+        try:
+            resources.embedding_model = await asyncio.to_thread(
+                load_embedding_model, settings.embedding_model
+            )
+        except Exception:
+            resources.startup_errors["embedding_model"] = "initialization_failed"
 
-    try:
-        resources.reranker_model = await asyncio.to_thread(
-            load_reranker_model, settings.reranker_model
-        )
-    except Exception:
-        resources.startup_errors["reranker_model"] = "initialization_failed"
+        try:
+            resources.reranker_model = await asyncio.to_thread(
+                load_reranker_model, settings.reranker_model
+            )
+        except Exception:
+            resources.startup_errors["reranker_model"] = "initialization_failed"
 
     if (
         resources.llm_client is not None

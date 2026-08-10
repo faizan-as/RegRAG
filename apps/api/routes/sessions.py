@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,6 +15,7 @@ from apps.api.schemas.evidence import EvidenceCard
 from apps.api.schemas.sessions import (
     SessionCreateRequest,
     SessionHistoryResponse,
+    SessionListResponse,
     SessionResponse,
     TurnResponse,
 )
@@ -22,6 +23,15 @@ from apps.api.security import AuthenticatedUser, require_roles
 from src.db.models import ChatSessionRecord, ChatTurnRecord
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
+
+
+def _session_response(record: ChatSessionRecord) -> SessionResponse:
+    return SessionResponse(
+        session_id=record.id,
+        title=record.title,
+        status=record.status,
+        created_at=record.created_at,
+    )
 
 
 async def get_owned_session(
@@ -47,11 +57,28 @@ async def create_session(
     session.add(record)
     await session.commit()
     await session.refresh(record)
-    return SessionResponse(
-        session_id=record.id,
-        title=record.title,
-        status=record.status,
-        created_at=record.created_at,
+    return _session_response(record)
+
+
+@router.get("", response_model=SessionListResponse)
+async def list_sessions(
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_db_session),
+    user: AuthenticatedUser = Depends(require_roles("researcher", "admin")),
+) -> SessionListResponse:
+    """Return a newest-first page of sessions owned by the caller."""
+    records = await session.scalars(
+        select(ChatSessionRecord)
+        .where(ChatSessionRecord.owner_user_id == user.user_id)
+        .order_by(ChatSessionRecord.updated_at.desc(), ChatSessionRecord.id)
+        .offset(offset)
+        .limit(limit)
+    )
+    return SessionListResponse(
+        sessions=[_session_response(record) for record in records],
+        limit=limit,
+        offset=offset,
     )
 
 

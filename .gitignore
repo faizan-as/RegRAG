@@ -7,3 +7,5 @@ __pycache__/
 htmlcov/
 .venv/
 .env
+data/object_store/catalog/search-for-guidance/
+data/object_store/raw/

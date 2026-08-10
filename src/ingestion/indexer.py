@@ -16,7 +16,6 @@ from apps.api.schemas.chunks import EmbeddedChunk
 from apps.api.schemas.documents import DocumentMetadata
 from src.db.models import GuidanceChunk, GuidanceRegistry
 
-
 DocumentMetadataInput = DocumentMetadata | Mapping[str, Any] | None
 
 
@@ -53,13 +52,13 @@ async def reindex_changed_document(
         document_slug=document_slug,
         version_hash=version_hash,
     )
+    ensure_keyword_index(client, index_name=index_name)
     keyword_deleted = delete_keyword_chunks_for_version(
         client,
         index_name=index_name,
         document_slug=document_slug,
         version_hash=version_hash,
     )
-    ensure_keyword_index(client, index_name=index_name)
     dense_indexed = await upsert_dense_chunks(
         session,
         embedded_chunks,

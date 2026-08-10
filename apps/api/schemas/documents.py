@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import UTC, date, datetime
 from enum import Enum
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
@@ -99,23 +100,51 @@ class DocumentVersion(BaseModel):
     )
 
 
+class DocumentVersionResponse(BaseModel):
+    """Public version metadata without internal storage coordinates."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    document_id: str
+    version_hash: str
+    source_url: HttpUrl
+    status: DocumentStatus
+    lifecycle_state: LifecycleState = LifecycleState.ACTIVE
+    fda_last_changed: datetime | None = None
+    supersedes_version_hash: str | None = None
+    created_at: datetime
+
+
+class DocumentArtifact(BaseModel):
+    """Authorized source artifact descriptor without internal storage paths."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_id: UUID = Field(description="Identifier accepted by the protected download route.")
+    content_type: str = Field(description="Artifact media type.")
+    artifact_kind: str = Field(description="Preserved source artifact category.")
+    version_hash: str | None = Field(default=None, description="Associated source version hash.")
+    size_bytes: int = Field(ge=0, description="Artifact size in bytes.")
+    created_at: datetime = Field(description="Artifact preservation timestamp.")
+
+
 class GuidanceDocument(BaseModel):
     """A parsed FDA guidance document with preserved structure."""
 
     model_config = ConfigDict(extra="forbid")
 
     metadata: DocumentMetadata = Field(description="Document-level metadata.")
-    raw_object_key: str | None = Field(
-        default=None,
-        description="Object-store key for the preserved raw PDF/HTML.",
-    )
-    versions: list[DocumentVersion] = Field(
+    versions: list[DocumentVersionResponse] = Field(
         default_factory=list,
         description="Known preserved source versions for this document.",
     )
     section_ids: list[str] = Field(
         default_factory=list,
         description="Ordered normalized section identifiers in the document.",
+    )
+    artifacts: list[DocumentArtifact] = Field(
+        default_factory=list,
+        description="Authorized preserved-source descriptors for this document.",
     )
 
 

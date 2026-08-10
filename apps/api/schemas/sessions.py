@@ -26,6 +26,15 @@ class SessionResponse(BaseModel):
     created_at: datetime
 
 
+class SessionListResponse(BaseModel):
+    """Newest-first page of chat sessions owned by the caller."""
+
+    model_config = ConfigDict(extra="forbid")
+    sessions: list[SessionResponse] = Field(default_factory=list)
+    limit: int
+    offset: int
+
+
 class TurnResponse(BaseModel):
     """One immutable final answer or refusal in a session."""
 

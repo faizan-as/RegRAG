@@ -36,6 +36,7 @@ def _sample_evidence() -> EvidenceCard:
     return EvidenceCard(
         citation_id="[1]",
         document_id="fda-0001",
+        chunk_id="fda-0001:version:1",
         title="Guidance for Industry",
         passage="The applicant should submit...",
         source_url="https://www.fda.gov/guidance/example",

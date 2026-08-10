@@ -27,6 +27,7 @@ from apps.api.routes.health import router as health_router
 from apps.api.routes.search import router as search_router
 from apps.api.routes.sessions import router as sessions_router
 from apps.api.routes.summaries import router as summaries_router
+from apps.api.schemas.errors import API_ERROR_RESPONSES
 from apps.api.settings import AppEnv, get_settings
 from src.common.logging import configure_logging, get_logger
 
@@ -71,6 +72,7 @@ def create_app(resource_initializer: ResourceInitializer = initialize_resources)
         title="FDA Regulatory Intelligence Platform",
         version="0.1.0",
         lifespan=lifespan,
+        responses=API_ERROR_RESPONSES,
     )
     application.add_middleware(RequestIdMiddleware)
     application.add_middleware(
@@ -79,6 +81,7 @@ def create_app(resource_initializer: ResourceInitializer = initialize_resources)
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "OPTIONS"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+        expose_headers=["Content-Disposition", "X-Request-ID", "Retry-After"],
     )
     register_exception_handlers(application)
     application.include_router(health_router)

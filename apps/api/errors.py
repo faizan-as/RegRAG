@@ -21,10 +21,17 @@ class APIError(Exception):
     status_code: int = 500
     code: str = "internal_error"
 
-    def __init__(self, message: str, *, details: list[dict[str, Any]] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        *,
+        details: list[dict[str, Any]] | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.details = details
+        self.headers = headers
 
 
 class ValidationAPIError(APIError):
@@ -80,6 +87,7 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def handle_api_error(request: Request, exc: APIError) -> JSONResponse:
         return JSONResponse(
             status_code=exc.status_code,
+            headers=exc.headers,
             content={
                 "error": {
                     "code": exc.code,

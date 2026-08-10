@@ -157,6 +157,16 @@ async def chat(
 
 @router.post(
     "/stream",
+    response_model=ChatStreamEvent,
+    response_class=EventSourceResponse,
+    responses={
+        200: {
+            "description": "Named SSE events carrying the documented chat stream protocol.",
+            "content": {
+                "text/event-stream": {"schema": {"$ref": "#/components/schemas/ChatStreamEvent"}}
+            },
+        }
+    },
     dependencies=[Depends(enforce_chat_rate_limit), Depends(acquire_stream_lease)],
 )
 async def chat_stream(

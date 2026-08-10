@@ -65,7 +65,7 @@ services:
     ports:
       - "3000:3000"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://localhost:3000/api/public/health || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://$$(hostname):3000/api/public/health || exit 1"]
       interval: 20s
       timeout: 5s
       retries: 5
